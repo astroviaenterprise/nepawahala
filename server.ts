@@ -25,6 +25,11 @@ async function startServer() {
   app.post("/api/predict", async (req, res) => {
     const { logs, currentLocation } = req.body;
     
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY is missing in environment");
+      return res.status(500).json({ error: "AI configuration missing on server" });
+    }
+
     if (!logs || !Array.isArray(logs)) {
       return res.status(400).json({ error: "Missing logs for prediction" });
     }
@@ -43,6 +48,8 @@ async function startServer() {
         Return the result as JSON with keys: "prediction", "confidence", "estimatedTime".
       `;
 
+      console.log(`Generating prediction for: ${currentLocation?.address}`);
+
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
@@ -51,10 +58,17 @@ async function startServer() {
         }
       });
 
-      res.json(JSON.parse(result.text || "{}"));
-    } catch (error) {
-      console.error("Prediction error:", error);
-      res.status(500).json({ error: "Failed to generate prediction" });
+      if (!result.text) {
+        throw new Error("Empty response from AI model");
+      }
+
+      res.json(JSON.parse(result.text));
+    } catch (error: any) {
+      console.error("Prediction error details:", error);
+      res.status(500).json({ 
+        error: "Failed to generate prediction",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 

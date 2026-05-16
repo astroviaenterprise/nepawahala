@@ -90,12 +90,12 @@ export default function App() {
 
   // Handle Prediction
   useEffect(() => {
-    if (!currentLocation || logs.length === 0) return;
+    if (!currentLocation) return;
 
     const generatePrediction = async () => {
       setIsPredicting(true);
       try {
-        // Filter logs by matching address string (simple approach)
+        // Filter logs by matching address string
         const relevantLogs = logs.filter(l => 
           l.location.address.toLowerCase().includes(currentLocation.address.toLowerCase()) ||
           currentLocation.address.toLowerCase().includes(l.location.address.toLowerCase())
@@ -109,10 +109,20 @@ export default function App() {
             currentLocation 
           }),
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch prediction');
+        }
+
         const data = await response.json();
         setPrediction(data);
       } catch (err) {
-        console.error("Prediction fetch failed", err);
+        console.error("Prediction fetch failed:", err);
+        setPrediction({
+          prediction: "Grid analysis unavailable. Check connection.",
+          confidence: 0,
+          estimatedTime: "Unknown"
+        });
       } finally {
         setIsPredicting(false);
       }

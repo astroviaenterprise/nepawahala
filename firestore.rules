@@ -66,9 +66,13 @@ service cloud.firestore {
 
     // --- PHASE 5: Resource Rules ---
 
+    match /test/connection {
+      allow get: if true;
+    }
+
     match /logs/{logId} {
-      allow get: if isSignedIn() && isValidId(logId);
-      allow list: if isSignedIn(); 
+      allow get: if isValidId(logId);
+      allow list: if true; 
       allow create: if isVerified() && isValidLog(incoming());
       allow update, delete: if isAdmin();
     }
@@ -80,7 +84,7 @@ service cloud.firestore {
       allow create: if isOwner(userId) 
         && incoming().keys().hasAll(['displayName', 'email'])
         && incoming().keys().size() >= 2
-        && incoming().displayName is string
+        && (incoming().displayName == null || incoming().displayName is string)
         && incoming().email == request.auth.token.email;
 
       allow update: if isOwner(userId) && (

@@ -47,9 +47,9 @@ export default function PredictionView({ prediction, isLoading }: Props) {
         </div>
 
         <div className="space-y-6">
-          <h3 className="text-3xl font-black uppercase italic leading-none">
+          <p className="text-3xl font-black uppercase italic leading-none">
             {prediction.prediction}
-          </h3>
+          </p>
           
           {prediction.estimatedTime && (
             <div className="inline-block border-2 border-yellow-400 px-4 py-2 text-2xl font-black uppercase tabular-nums">
