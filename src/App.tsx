@@ -276,7 +276,7 @@ export default function App() {
           </p>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
-            <span className="text-[10px] font-black uppercase">System Health: Optimal</span>
+            <span className="text-[10px] font-black uppercase">Astrovia Enterprise</span>
           </div>
         </footer>
       </div>

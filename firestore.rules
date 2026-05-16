@@ -26,6 +26,8 @@ service cloud.firestore {
         && data.status in ['on', 'off']
         && data.location.address is string
         && data.location.placeId is string
+        && data.location.lat is number
+        && data.location.lng is number
         && data.timestamp == request.time;
     }
 
