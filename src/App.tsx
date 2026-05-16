@@ -324,7 +324,7 @@ export default function App() {
 
         <footer className="border-t-[6px] border-black p-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            LIGHTWATCH © 2026 / DATA CROWDSOURCED
+            NEPAWAHALA © 2026 / DATA CROWDSOURCED
           </p>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 border-2 border-black rounded-full" />

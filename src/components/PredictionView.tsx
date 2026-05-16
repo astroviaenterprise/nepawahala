@@ -47,7 +47,7 @@ export default function PredictionView({ prediction, isLoading }: Props) {
         </div>
 
         <div className="space-y-6">
-          <h3 className="text-5xl font-black uppercase italic leading-none">
+          <h3 className="text-3xl font-black uppercase italic leading-none">
             {prediction.prediction}
           </h3>
           
