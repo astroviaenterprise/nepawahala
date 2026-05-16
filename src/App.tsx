@@ -147,7 +147,7 @@ export default function App() {
       <div className="min-h-screen bg-orange-50 flex items-center justify-center">
         <div className="flex flex-col items-center">
           <Zap className="w-12 h-12 text-orange-500 animate-bounce" />
-          <p className="mt-4 text-orange-900 font-medium tracking-tight">Initializing LightWatch...</p>
+          <p className="mt-4 text-orange-900 font-medium tracking-tight">Initializing NepaWahala...</p>
         </div>
       </div>
     );
@@ -169,7 +169,7 @@ export default function App() {
             <Zap className="w-12 h-12 text-orange-600 fill-orange-600" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-none mb-6">
-            LightWatch <span className="text-orange-500">Nigeria</span>
+            NepaWahala <span className="text-orange-500">Nigeria</span>
           </h1>
           <p className="text-lg text-gray-600 mb-10 leading-relaxed">
             Join thousands of Nigerians tracking power outages. Get live updates and AI-powered predictions for your area.
@@ -195,7 +195,7 @@ export default function App() {
         {/* Header */}
         <header className="border-b-[6px] border-black p-4 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
           <div className="space-y-1">
-            <h1 className="text-4xl sm:text-7xl font-black tracking-tighter uppercase italic leading-none">GRIDWATCH.NG</h1>
+            <h1 className="text-4xl sm:text-7xl font-black tracking-tighter uppercase italic leading-none">NEPAWAHALA</h1>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Power Tracking Infrastructure</p>
           </div>
           
