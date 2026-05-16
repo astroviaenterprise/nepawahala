@@ -82,8 +82,8 @@ app.post("/api/predict", async (req, res) => {
     let errorMessage = "Failed to generate prediction";
     let status = 500;
 
-    if (error.message?.includes("API key expired") || error.message?.includes("API_KEY_INVALID")) {
-      errorMessage = "The Gemini API key has expired or is invalid. Please update it in the Settings > Secrets panel (or Vercel Environment Variables).";
+    if (error.message?.includes("API key expired") || error.message?.includes("API_KEY_INVALID") || (error.status === 400 && error.message?.includes("API key"))) {
+      errorMessage = "The Gemini API key is reported as EXPIRED or INVALID by the Google servers. Please go to https://aistudio.google.com/app/apikey, generate a NEW key, and update your GEMINI_API_KEY environment variable.";
       status = 401;
     } else if (error.message?.includes("quota") || error.message?.includes("429")) {
       errorMessage = "Gemini API quota exceeded. Please wait or upgrade to a paid tier.";
