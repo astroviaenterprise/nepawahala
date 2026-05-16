@@ -26,13 +26,15 @@
       "description": "Basic user information.",
       "type": "object",
       "properties": {
-        "displayName": { "type": "string" },
-        "email": { "type": "string" },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "email": { "type": "string", "description": "User's email address." },
         "lastLocation": {
           "type": "object",
           "properties": {
             "address": { "type": "string" },
-            "placeId": { "type": "string" }
+            "placeId": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
           }
         }
       }

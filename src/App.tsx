@@ -13,7 +13,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { db, auth } from './lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from './lib/firebase';
 import { LightLog, Location, PredictionResult, UserProfile } from './types';
 import LocationInput from './components/LocationInput';
 import StatusCard from './components/StatusCard';
@@ -26,31 +26,50 @@ import { cn } from './lib/utils';
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [logs, setLogs] = useState<LightLog[]>([]);
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
 
-  // Authentication
+  // Authentication and Real-time Profile Sync
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
+      
       if (user) {
-        // Sync user profile
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, {
-          displayName: user.displayName,
-          email: user.email,
-        }, { merge: true });
+        // Initial sync of profile
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await setDoc(userRef, {
+            displayName: user.displayName,
+            email: user.email,
+          }, { merge: true });
+          
+          // Listen to profile changes live (e.g. from other devices)
+          onSnapshot(userRef, (snapshot) => {
+            if (snapshot.exists()) {
+              const data = snapshot.data();
+              if (data.lastLocation && !currentLocation) {
+                setCurrentLocation(data.lastLocation);
+              }
+            }
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+        }
       }
     });
-  }, []);
+  }, [currentLocation]);
 
-  // Listen for logs
+  // Real-time Power Logs Listener
   useEffect(() => {
-    let q = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(50));
+    // This connects the app to Firebase and listens for any changes in the 'logs' collection.
+    // When a new log is added by ANY user, this callback fires automatically.
+    const q = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(50));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newLogs = snapshot.docs.map(doc => ({
@@ -58,6 +77,12 @@ export default function App() {
         ...doc.data()
       })) as LightLog[];
       setLogs(newLogs);
+      setIsSynced(true);
+      setConnectionError(null);
+    }, (error) => {
+      setIsSynced(false);
+      setConnectionError(error.message);
+      handleFirestoreError(error, OperationType.LIST, 'logs');
     });
 
     return () => unsubscribe();
@@ -123,11 +148,15 @@ export default function App() {
       });
       
       // Update user's last location
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, { lastLocation: currentLocation }, { merge: true });
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, { lastLocation: currentLocation }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+      }
 
     } catch (err) {
-      console.error("Failed to report", err);
+      handleFirestoreError(err, OperationType.CREATE, 'logs');
     } finally {
       setIsReporting(false);
     }
@@ -148,6 +177,20 @@ export default function App() {
         <div className="flex flex-col items-center">
           <Zap className="w-12 h-12 text-orange-500 animate-bounce" />
           <p className="mt-4 text-orange-900 font-medium tracking-tight">Initializing NepaWahala...</p>
+          {connectionError && (
+            <div className="mt-8 max-w-md p-6 bg-white border-[4px] border-black brutal-shadow">
+              <h3 className="text-red-600 font-black uppercase italic mb-2">Network Issue Detected</h3>
+              <p className="text-xs text-gray-600 font-bold leading-tight">
+                {connectionError}
+              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-4 w-full py-2 bg-black text-white text-xs font-black uppercase tracking-widest hover:bg-gray-800"
+              >
+                Retry Connection
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -199,7 +242,16 @@ export default function App() {
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Power Tracking Infrastructure</p>
           </div>
           
-          <div className="flex items-center gap-4 border-t-2 sm:border-t-0 sm:border-l-4 border-black pt-4 sm:pt-0 sm:pl-6 w-full sm:w-auto">
+            <div className="flex items-center gap-4 border-t-2 sm:border-t-0 sm:border-l-4 border-black pt-4 sm:pt-0 sm:pl-6 w-full sm:w-auto">
+            <div className="flex items-center gap-2 mr-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                isSynced ? "bg-green-500 animate-pulse" : "bg-red-500"
+              )} />
+              <span className="text-[8px] font-black uppercase text-gray-400">
+                {isSynced ? "Live" : "Offline"}
+              </span>
+            </div>
             <div className="flex flex-col items-start sm:items-end flex-1">
               <span className="text-[10px] font-black uppercase text-gray-400">Contributor</span>
               <span className="text-lg font-black uppercase italic truncate max-w-[150px]">{user.displayName}</span>
