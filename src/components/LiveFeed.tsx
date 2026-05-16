@@ -2,6 +2,7 @@ import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { LightLog } from '../types';
 import { User, MapPin, Zap, ZapOff } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface Props {
   logs: LightLog[];

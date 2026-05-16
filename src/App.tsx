@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { 
   collection, 
   addDoc, 
@@ -16,15 +15,13 @@ import {
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import { db, auth } from './lib/firebase';
 import { LightLog, Location, PredictionResult, UserProfile } from './types';
-import PlaceAutocomplete from './components/PlaceAutocomplete';
+import LocationInput from './components/LocationInput';
 import StatusCard from './components/StatusCard';
 import LiveFeed from './components/LiveFeed';
 import PredictionView from './components/PredictionView';
-import { Zap, LogOut, ShieldAlert, MapPin, Search } from 'lucide-react';
+import { Zap, LogOut, MapPin, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-
-const MAPS_API_KEY = process.env.GOOGLE_MAPS_PLATFORM_KEY || '';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -55,13 +52,6 @@ export default function App() {
   useEffect(() => {
     let q = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(50));
     
-    // Filter by location if selected
-    if (currentLocation) {
-       // We can't easily filter by "near" in logic-less Firestore without Geohashes, 
-       // but we'll filter by city/placeId for now or just show global then filter client-side
-       // For this MVP, let's just show recent logs globally and maybe refine later.
-    }
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newLogs = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -71,7 +61,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [currentLocation]);
+  }, []);
 
   // Handle Prediction
   useEffect(() => {
@@ -80,8 +70,10 @@ export default function App() {
     const generatePrediction = async () => {
       setIsPredicting(true);
       try {
+        // Filter logs by matching address string (simple approach)
         const relevantLogs = logs.filter(l => 
-          l.location.placeId === currentLocation.placeId
+          l.location.address.toLowerCase().includes(currentLocation.address.toLowerCase()) ||
+          currentLocation.address.toLowerCase().includes(l.location.address.toLowerCase())
         );
 
         const response = await fetch('/api/predict', {
@@ -116,7 +108,7 @@ export default function App() {
 
   const handleReport = async (status: 'on' | 'off') => {
     if (!user || !currentLocation) {
-      alert("Please select a location first!");
+      alert("Please enter your area first!");
       return;
     }
 
@@ -139,6 +131,15 @@ export default function App() {
     } finally {
       setIsReporting(false);
     }
+  };
+
+  const handleLocationSubmit = (address: string) => {
+    setCurrentLocation({
+      address,
+      placeId: address.toLowerCase().replace(/\s+/g, '-'), // dummy ID for grouping
+      lat: 0,
+      lng: 0
+    });
   };
 
   if (loading) {
@@ -188,127 +189,97 @@ export default function App() {
     );
   }
 
-  if (!MAPS_API_KEY) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md text-center border border-red-100">
-          <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">API Key Required</h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            Please add <code>GOOGLE_MAPS_PLATFORM_KEY</code> to your secrets in AI Studio to enable location services.
-          </p>
-          <div className="text-left bg-gray-50 p-4 rounded-xl text-sm font-mono text-gray-700">
-            1. Open Settings (⚙️ icon)<br />
-            2. Go to Secrets<br />
-            3. Add GOOGLE_MAPS_PLATFORM_KEY
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <APIProvider apiKey={MAPS_API_KEY} version="weekly">
-      <div className="min-h-screen bg-yellow-400 p-0 sm:p-4">
-        <div className="max-w-[1200px] mx-auto bg-white min-h-[calc(100vh-2rem)] flex flex-col border-[8px] sm:border-[12px] border-black shadow-[20px_20px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-          {/* Header */}
-          <header className="border-b-[6px] border-black p-4 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
-            <div className="space-y-1">
-              <h1 className="text-4xl sm:text-7xl font-black tracking-tighter uppercase italic leading-none">GRIDWATCH.NG</h1>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Power Tracking Infrastructure</p>
+    <div className="min-h-screen bg-yellow-400 p-0 sm:p-4">
+      <div className="max-w-[1200px] mx-auto bg-white min-h-[calc(100vh-2rem)] flex flex-col border-[8px] sm:border-[12px] border-black shadow-[20px_20px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        {/* Header */}
+        <header className="border-b-[6px] border-black p-4 sm:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
+          <div className="space-y-1">
+            <h1 className="text-4xl sm:text-7xl font-black tracking-tighter uppercase italic leading-none">GRIDWATCH.NG</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Power Tracking Infrastructure</p>
+          </div>
+          
+          <div className="flex items-center gap-4 border-t-2 sm:border-t-0 sm:border-l-4 border-black pt-4 sm:pt-0 sm:pl-6 w-full sm:w-auto">
+            <div className="flex flex-col items-start sm:items-end flex-1">
+              <span className="text-[10px] font-black uppercase text-gray-400">Contributor</span>
+              <span className="text-lg font-black uppercase italic truncate max-w-[150px]">{user.displayName}</span>
             </div>
-            
-            <div className="flex items-center gap-4 border-t-2 sm:border-t-0 sm:border-l-4 border-black pt-4 sm:pt-0 sm:pl-6 w-full sm:w-auto">
-              <div className="flex flex-col items-start sm:items-end flex-1">
-                <span className="text-[10px] font-black uppercase text-gray-400">Contributor</span>
-                <span className="text-lg font-black uppercase italic truncate max-w-[150px]">{user.displayName}</span>
+            <button 
+              onClick={() => auth.signOut()}
+              className="w-12 h-12 border-4 border-black flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 flex flex-col lg:flex-row">
+          {/* Left Column: Input & Prediction */}
+          <div className="flex-1 border-b-[6px] lg:border-b-0 lg:border-r-[6px] border-black p-4 sm:p-10 space-y-10">
+            <section className="space-y-4">
+              <div className="inline-block bg-black text-white px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                Location Selection
               </div>
-              <button 
-                onClick={() => auth.signOut()}
-                className="w-12 h-12 border-4 border-black flex items-center justify-center hover:bg-black hover:text-white transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </header>
-
-          <main className="flex-1 flex flex-col lg:flex-row">
-            {/* Left Column: Input & Prediction */}
-            <div className="flex-1 border-b-[6px] lg:border-b-0 lg:border-r-[6px] border-black p-4 sm:p-10 space-y-10">
-              <section className="space-y-4">
-                <div className="inline-block bg-black text-white px-3 py-1 text-[10px] font-black uppercase tracking-widest">
-                  Location Selection
-                </div>
-                <h2 className="text-4xl font-black uppercase italic leading-none">Where are you?</h2>
-                <div className="pt-2">
-                  <PlaceAutocomplete 
-                    onPlaceSelect={(p) => {
-                      if (p.geometry?.location) {
-                        setCurrentLocation({
-                          address: p.formatted_address || '',
-                          placeId: p.place_id || '',
-                          lat: p.geometry.location.lat(),
-                          lng: p.geometry.location.lng()
-                        });
-                      }
-                    }}
-                    defaultValue={currentLocation?.address}
-                  />
-                </div>
-              </section>
-
-              <div className="grid grid-cols-1 gap-10">
-                <StatusCard 
-                  onReport={handleReport} 
-                  isLoading={isReporting} 
-                />
-
-                <PredictionView 
-                  prediction={prediction} 
-                  isLoading={isPredicting} 
+              <h2 className="text-4xl font-black uppercase italic leading-none">Where are you?</h2>
+              <div className="pt-2">
+                <LocationInput 
+                  onLocationSubmit={handleLocationSubmit}
+                  defaultValue={currentLocation?.address}
                 />
               </div>
+            </section>
 
-              {/* Local Stats Section */}
-              {currentLocation && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 border-4 border-black">
-                  <div className="p-6 border-b-4 sm:border-b-0 sm:border-r-4 border-black bg-yellow-50">
-                    <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Global reports</p>
-                    <p className="text-5xl font-black italic">{logs.length}</p>
-                  </div>
-                  <div className="p-6 bg-white">
-                    <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Target Area</p>
-                    <p className="text-xl font-black uppercase italic truncate">
-                      {currentLocation.address.split(',')[0]}
-                    </p>
-                  </div>
+            <div className="grid grid-cols-1 gap-10">
+              <StatusCard 
+                onReport={handleReport} 
+                isLoading={isReporting} 
+              />
+
+              <PredictionView 
+                prediction={prediction} 
+                isLoading={isPredicting} 
+              />
+            </div>
+
+            {/* Local Stats Section */}
+            {currentLocation && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 border-4 border-black">
+                <div className="p-6 border-b-4 sm:border-b-0 sm:border-r-4 border-black bg-yellow-50">
+                  <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Global reports</p>
+                  <p className="text-5xl font-black italic">{logs.length}</p>
                 </div>
-              )}
-            </div>
-
-            {/* Right Column: Feed */}
-            <aside className="w-full lg:w-[400px] bg-gray-50 flex flex-col h-[600px] lg:h-auto">
-              <div className="p-4 border-b-4 border-black bg-black flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-yellow-400 tracking-widest">Live Community Feed</span>
-                <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                <div className="p-6 bg-white">
+                  <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Target Area</p>
+                  <p className="text-xl font-black uppercase italic truncate">
+                    {currentLocation.address}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                <LiveFeed logs={logs} />
-              </div>
-            </aside>
-          </main>
+            )}
+          </div>
 
-          <footer className="border-t-[6px] border-black p-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-              LIGHTWATCH © 2026 / DATA CROWDSOURCED
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
-              <span className="text-[10px] font-black uppercase">System Health: Optimal</span>
+          {/* Right Column: Feed */}
+          <aside className="w-full lg:w-[400px] bg-gray-50 flex flex-col h-[600px] lg:h-auto">
+            <div className="p-4 border-b-4 border-black bg-black flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-yellow-400 tracking-widest">Live Community Feed</span>
+              <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
             </div>
-          </footer>
-        </div>
+            <div className="flex-1 overflow-y-auto">
+              <LiveFeed logs={logs} />
+            </div>
+          </aside>
+        </main>
+
+        <footer className="border-t-[6px] border-black p-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            LIGHTWATCH © 2026 / DATA CROWDSOURCED
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
+            <span className="text-[10px] font-black uppercase">System Health: Optimal</span>
+          </div>
+        </footer>
       </div>
-    </APIProvider>
+    </div>
   );
 }
