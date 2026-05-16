@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "lightLog": {
+      "title": "Light Log",
+      "description": "A capture of power status at a specific time and location.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the user who reported." },
+        "userName": { "type": "string", "description": "Name of the reporter." },
+        "status": { "type": "string", "enum": ["on", "off"], "description": "Power status." },
+        "location": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "placeId": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "status", "location", "timestamp"]
+    },
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Basic user information.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "lastLocation": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "placeId": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/logs/{logId}": {
+      "schema": "lightLog",
+      "description": "Collection of light reports."
+    },
+    "/users/{userId}": {
+      "schema": "userProfile",
+      "description": "User profile data."
+    }
+  }
+}

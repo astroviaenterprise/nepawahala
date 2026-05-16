@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-[#FFF9F5];
+  }
+}
+
+.brutal-shadow {
+  box-shadow: 12px 12px 0px 0px rgba(0,0,0,1);
+}
+
+.brutal-shadow-sm {
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}

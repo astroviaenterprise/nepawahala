@@ -1,0 +1,8 @@
+{
+  "name": "LightWatch Nigeria",
+  "description": "Crowdsourced power outage tracking and prediction app for Nigeria.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
