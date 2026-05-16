@@ -111,15 +111,16 @@ export default function App() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch prediction');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Server error: ${response.status}`);
         }
 
         const data = await response.json();
         setPrediction(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Prediction fetch failed:", err);
         setPrediction({
-          prediction: "Grid analysis unavailable. Check connection.",
+          prediction: `Analysis unavailable: ${err.message}`,
           confidence: 0,
           estimatedTime: "Unknown"
         });
