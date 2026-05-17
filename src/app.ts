@@ -64,8 +64,11 @@ app.post("/api/predict", async (req, res) => {
     console.log(`Generating prediction for: ${currentLocation?.address}`);
 
     const result = await aiClient.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
+      model: "gemini-1.5-flash-latest",
+      contents: [{
+        role: "user",
+        parts: [{ text: prompt }]
+      }],
       config: {
         responseMimeType: "application/json",
       }

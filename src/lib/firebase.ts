@@ -7,19 +7,26 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth();
 
-// Test connection on boot
+// Test connection cautiously on boot
 async function testConnection() {
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Connection test timed out')), 5000)
+  );
+
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    await Promise.race([
+      getDocFromServer(doc(db, 'test', 'connection')),
+      timeoutPromise
+    ]);
     console.log("Firebase connection established successfully.");
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes('the client is offline')) {
-        console.error("Firebase: Client is offline. Outgoing requests will be queued.");
+      if (error.message.includes('offline') || error.message.includes('timed out')) {
+        console.warn("Firebase: Connecting in offline mode (Network might be slow or unstable).");
       } else if (error.message.includes('permission-denied')) {
-        console.log("Firebase connection test: Initialized (Permission Denied is expected for missing 'test/connection' doc).");
+        console.log("Firebase connection diagnostic: Initialized (Missing test doc is okay).");
       } else {
-        console.error("Firebase connection diagnostic:", error.message);
+        console.log("Firebase status:", error.message);
       }
     }
   }
