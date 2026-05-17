@@ -133,13 +133,36 @@ export default function App() {
     return () => clearTimeout(timeoutId);
   }, [currentLocation, logs]);
 
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
+
   const handleLogin = async () => {
+    setLoginError(null);
+    setIsAuthChecking(true);
     try {
       const provider = new GoogleAuthProvider();
+      console.log("Attempting Google login via popup...");
+      // Using popup as it's generally better in this iframe environment
       await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error(err);
+      console.log("Login success");
+    } catch (err: any) {
+      console.error("Login failed:", err);
+      if (err.code === 'auth/popup-blocked') {
+        setLoginError("Login popup was blocked. Please check your browser's address bar for a blocked popup icon and allow it.");
+      } else if (err.code === 'auth/network-request-failed') {
+        setLoginError("Network connection failed. If you have an ad-blocker or VPN, try disabling them for this site.");
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setLoginError("Login window was closed before completion.");
+      } else {
+        setLoginError(err.message || "An unexpected error occurred during login.");
+      }
+    } finally {
+      setIsAuthChecking(false);
     }
+  };
+
+  const handleNewTabLogin = () => {
+    window.open(window.location.href, '_blank');
   };
 
   const handleReport = async (status: 'on' | 'off') => {
@@ -230,11 +253,51 @@ export default function App() {
           </p>
           <button 
             onClick={handleLogin}
-            className="w-full bg-gray-900 hover:bg-black text-white px-8 py-4 rounded-2xl font-bold shadow-2xl transition-all hover:scale-[1.02] flex items-center justify-center gap-3"
+            disabled={isAuthChecking}
+            className="w-full bg-gray-900 hover:bg-black text-white px-8 py-4 rounded-2xl font-bold shadow-2xl transition-all hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-wait"
           >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="Google" />
-            Continue with Google
+            {isAuthChecking ? (
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                Signing in...
+              </span>
+            ) : (
+              <>
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="Google" />
+                Continue with Google
+              </>
+            )}
           </button>
+          
+          {loginError && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mt-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-700 text-sm font-medium text-left"
+            >
+              <p className="font-bold mb-1">Login Issue</p>
+              <p className="text-xs">{loginError}</p>
+              
+              <div className="mt-4 p-3 bg-white border border-red-100 rounded-lg">
+                <p className="text-[10px] uppercase font-black tracking-widest text-gray-400 mb-2">Pro Tip</p>
+                <p className="text-xs text-gray-600 mb-3">If popups aren't working in this window, try opening the app in a new tab.</p>
+                <button 
+                  onClick={handleNewTabLogin}
+                  className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-orange-600 hover:text-orange-700"
+                >
+                  Open in New Tab
+                </button>
+              </div>
+
+              <button 
+                onClick={() => setLoginError(null)}
+                className="block mt-4 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 underline"
+              >
+                Dismiss
+              </button>
+            </motion.div>
+          )}
+
           <p className="mt-8 text-xs text-gray-400 font-medium uppercase tracking-widest">
             PHCN no go see you fall
           </p>
