@@ -64,7 +64,7 @@ app.post("/api/predict", async (req, res) => {
     console.log(`Generating prediction for: ${currentLocation?.address}`);
 
     const result = await aiClient.models.generateContent({
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
         parts: [{ text: prompt }]
@@ -85,17 +85,24 @@ app.post("/api/predict", async (req, res) => {
     let errorMessage = "Failed to generate prediction";
     let status = 500;
 
-    if (error.message?.includes("API key expired") || error.message?.includes("API_KEY_INVALID") || (error.status === 400 && error.message?.includes("API key"))) {
-      errorMessage = "The Gemini API key is reported as EXPIRED or INVALID by the Google servers. Please go to https://aistudio.google.com/app/apikey, generate a NEW key, and update your GEMINI_API_KEY environment variable.";
+    // Enhanced error detection for Gemini API
+    const errorStr = JSON.stringify(error);
+    const message = error.message || "";
+
+    if (message.includes("API key expired") || message.includes("API_KEY_INVALID") || error.status === 401 || error.status === 400 && message.includes("API key")) {
+      errorMessage = "The Gemini API key is reported as EXPIRED or INVALID. Please go to Settings > Secrets in AI Studio and generate/update your GEMINI_API_KEY.";
       status = 401;
-    } else if (error.message?.includes("quota") || error.message?.includes("429")) {
-      errorMessage = "Gemini API quota exceeded. Please wait or upgrade to a paid tier.";
+    } else if (message.includes("quota") || error.status === 429 || message.includes("429")) {
+      errorMessage = "Gemini API quota exceeded. Please wait or upgrade to a paid tier in the Google AI Studio settings.";
       status = 429;
+    } else if (message.includes("not found") || error.status === 404) {
+      errorMessage = "The selected Gemini model was not found or is unavailable. We have updated the app to use 'gemini-3-flash-preview'. Please redeploy.";
+      status = 404;
     }
 
     res.status(status).json({ 
       error: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' ? message : undefined
     });
   }
 });
