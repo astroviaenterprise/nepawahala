@@ -110,9 +110,20 @@ export default function App() {
           }),
         });
 
+        const contentType = response.headers.get("content-type");
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Server error: ${response.status}`);
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+          } else {
+            const text = await response.text();
+            throw new Error(`Server returned non-JSON error (${response.status}): ${text.substring(0, 100)}...`);
+          }
+        }
+
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          throw new Error(`Server returned invalid content type (${contentType}): ${text.substring(0, 100)}...`);
         }
 
         const data = await response.json();
