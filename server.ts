@@ -9,6 +9,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Logging middleware for all requests
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    next();
+  });
+
   // API Routes
   registerRoutes(app);
 

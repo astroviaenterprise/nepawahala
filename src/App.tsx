@@ -48,6 +48,13 @@ export default function App() {
     (window as any).gm_authFailure = handleMapsFailure;
     
     const unsubscribe = subscribeToLogs(setFeed, setSyncStatus);
+
+    // Initial API health check
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => console.log("API health check success:", d))
+      .catch(e => console.error("API health check failed:", e));
+
     return () => {
       window.removeEventListener('maps-auth-failure', handleMapsFailure);
       unsubscribe();
@@ -334,7 +341,7 @@ export default function App() {
         <div className="flex-grow relative overflow-y-auto custom-scrollbar p-6 sm:p-12 lg:p-20 z-10">
           <div className="max-w-5xl mx-auto space-y-12 sm:space-y-20">
             {/* Hero Stats */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[
                 { label: 'Outages Detected', value: feed.filter(f => f.status === 'OFF').length, icon: AlertTriangle, color: 'text-red-500' },
                 { label: 'Grid Restored', value: feed.filter(f => f.status === 'ON').length, icon: Zap, color: 'text-emerald-500' },
@@ -345,11 +352,11 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                   key={stat.label}
-                  className="hardware-card p-6 sm:p-8 bg-zinc-900/20 flex items-center justify-between group hover:border-zinc-700 transition-all"
+                  className="hardware-card p-5 sm:p-8 bg-zinc-900/20 flex items-center justify-between group hover:border-zinc-700 transition-all"
                 >
                   <div>
-                    <h3 className="tech-label mb-2">{stat.label}</h3>
-                    <div className="text-2xl sm:text-4xl font-black text-white font-mono">{stat.value}</div>
+                    <h3 className="tech-label mb-1 sm:mb-2">{stat.label}</h3>
+                    <div className="text-3xl sm:text-4xl font-black text-white font-mono">{stat.value}</div>
                   </div>
                   <stat.icon className={cn("w-6 h-6 sm:w-8 sm:h-8 opacity-20 group-hover:opacity-100 transition-opacity", stat.color)} />
                 </motion.div>
@@ -430,12 +437,17 @@ export default function App() {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-6 mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-zinc-700/50 md:pl-8">
+                          <div className="grid grid-cols-2 md:flex md:items-center gap-4 sm:gap-6 mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-zinc-700/50 md:pl-8">
                             <div className="flex flex-col items-center">
                               <span className="text-[8px] text-zinc-400 uppercase font-mono mb-1">Impact</span>
                               <span className="text-xs font-bold text-zinc-200">High</span>
                             </div>
-                            <button className="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all">
+                            <div className="flex flex-col items-center md:hidden">
+                              <span className="text-[8px] text-zinc-400 uppercase font-mono mb-1">Delta</span>
+                              <span className="text-xs font-bold text-amber-500">-2.1h</span>
+                            </div>
+                            <button className="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-all col-span-2 md:col-span-1 flex items-center justify-center">
+                              <span className="md:hidden text-[10px] font-mono mr-2 uppercase">Analysis</span>
                               <ChevronRight className="w-4 h-4" />
                             </button>
                           </div>

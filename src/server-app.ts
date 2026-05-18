@@ -1,7 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json' assert { type: 'json' };
+import fs from 'fs';
+import path from 'path';
+
+// Use readFileSync for firebase config to avoid ESM/CJS import issues with JSON assertions
+const firebaseConfig = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8')
+);
 
 // Lazy initialize Firebase
 function getDb() {
@@ -23,10 +29,9 @@ function getDb() {
 }
 
 const modelsToTry = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-pro'
+  'gemini-3-flash-preview',
+  'gemini-flash-latest',
+  'gemini-2.0-flash-preview'
 ];
 
 enum OperationType {
@@ -48,7 +53,10 @@ function handleFirestoreError(error: any, operationType: OperationType, path: st
 }
 
 export function registerRoutes(app: any) {
+  console.log("Registering API routes...");
+  
   app.get('/api/feed', async (req: any, res: any) => {
+    console.log("GET /api/feed requested");
     try {
       const db = getDb();
       const q = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), limit(20));
@@ -66,18 +74,26 @@ export function registerRoutes(app: any) {
   });
 
   app.post('/api/predict', async (req: any, res: any) => {
+    console.log("POST /api/predict requested", req.body);
     const { location, description, lat, lng, status } = req.body;
 
     let result = null;
     let errorDetails = [];
 
-    const aiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY || '',
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
 
     for (const modelName of modelsToTry) {
       try {
         console.log(`Trying model: ${modelName}`);
-        const model = aiClient.getGenerativeModel({ model: modelName });
-        const response = await model.generateContent({
+        const response = await ai.models.generateContent({
+          model: modelName,
           contents: [{
             role: 'user',
             parts: [{
@@ -88,12 +104,13 @@ export function registerRoutes(app: any) {
               Return JSON with "prediction" (a detailed professional analysis string, max 200 chars) and "estimatedHours" (a realistic number).`
             }]
           }],
-          generationConfig: {
+          config: {
             responseMimeType: 'application/json'
           }
         });
 
-        const text = response.response.text();
+        const text = response.text;
+        if (!text) throw new Error("Empty response from AI");
         result = JSON.parse(text);
         console.log(`Success with ${modelName}`);
         break;
