@@ -113,25 +113,28 @@ export function registerRoutes(app: any) {
     }
 
     // Log to Firestore safely
+    let logSuccessful = false;
     try {
       const db = getDb();
       await addDoc(collection(db, 'logs'), {
-        location,
-        description,
+        location: location || 'Unknown Node',
+        description: description || 'No details provided',
         status: status || 'OFF',
-        lat: Number(lat),
-        lng: Number(lng),
-        prediction: result.prediction,
-        estimatedHours: result.estimatedHours,
+        lat: Number(lat) || 6.5244,
+        lng: Number(lng) || 3.3792,
+        prediction: String(result.prediction || 'No prediction generated'),
+        estimatedHours: Number(result.estimatedHours) || 0,
         timestamp: serverTimestamp(),
         usingHeuristic: !!result.isHeuristic,
         errors: errorDetails
       });
+      logSuccessful = true;
+      console.log("Log successfully added to Firestore");
     } catch (fsErr: any) {
       handleFirestoreError(fsErr, OperationType.CREATE, 'logs');
     }
 
-    res.json(result);
+    res.json({ ...result, logSuccessful });
   });
 
   app.get('/api/health', (req: any, res: any) => {

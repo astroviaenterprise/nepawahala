@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-[#0C0C0E] text-slate-300 antialiased;
+    @apply bg-[#0C0C0E] text-zinc-200 antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
@@ -17,7 +17,7 @@
   }
   
   .tech-label {
-    @apply font-mono text-[10px] uppercase tracking-widest text-zinc-500 font-bold;
+    @apply font-mono text-[10px] uppercase tracking-widest text-zinc-400 font-bold;
   }
   
   .amber-glow {

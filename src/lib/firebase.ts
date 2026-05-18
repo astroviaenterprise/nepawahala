@@ -14,10 +14,11 @@ function getClientDb() {
 
 export let db = getClientDb();
 
-export function subscribeToLogs(callback: (logs: any[]) => void) {
+export function subscribeToLogs(callback: (logs: any[]) => void, onStatusChange?: (status: 'CONNECTING' | 'CONNECTED' | 'ERROR') => void) {
   let unsubscribe: (() => void) | null = null;
   
   const trySubscribe = (dbInstance: any) => {
+    if (onStatusChange) onStatusChange('CONNECTING');
     const q = query(collection(dbInstance, 'logs'), orderBy('timestamp', 'desc'), limit(20));
     const unsub = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({
@@ -26,7 +27,9 @@ export function subscribeToLogs(callback: (logs: any[]) => void) {
         timestamp: (doc.data().timestamp as any)?.toDate?.() || new Date()
       }));
       callback(logs);
+      if (onStatusChange) onStatusChange('CONNECTED');
     }, (error) => {
+      if (onStatusChange) onStatusChange('ERROR');
       if (error.code === 'not-found' && dbInstance._databaseId?.database === firebaseConfig.firestoreDatabaseId) {
         console.warn("Firestore database not found, falling back to (default)");
         // Re-init with default
