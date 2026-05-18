@@ -1,8 +1,6 @@
 {
-  "name": "NepaWahala",
-  "description": "Crowdsourced power outage tracking and prediction app for Nigeria.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "name": "Nepa Wahala",
+  "description": "AI-powered power outage tracker and restoration predictor for Nigeria with Google Maps integration",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

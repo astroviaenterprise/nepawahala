@@ -1,21 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-@theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-[#FFF9F5];
+    @apply bg-[#0C0C0E] text-slate-300 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
-.brutal-shadow {
-  box-shadow: 12px 12px 0px 0px rgba(0,0,0,1);
+@layer components {
+  .hardware-card {
+    @apply bg-[#151619] border border-zinc-800 rounded-2xl shadow-2xl;
+  }
+  
+  .tech-label {
+    @apply font-mono text-[10px] uppercase tracking-widest text-zinc-500 font-bold;
+  }
+  
+  .amber-glow {
+    @apply shadow-[0_0_15px_rgba(245,158,11,0.2)];
+  }
+
+  .grid-bg {
+    background-image: radial-gradient(#27272a 1px, transparent 1px);
+    background-size: 32px 32px;
+    animation: grid-pulse 8s ease-in-out infinite;
+  }
 }
 
-.brutal-shadow-sm {
-  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+}
+
+.animate-in {
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-fill-mode: forwards;
+}
+
+@keyframes slide-in-from-top-2 {
+  from { transform: translateY(-0.5rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.slide-in-from-top-2 {
+  animation-name: slide-in-from-top-2;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+/* Custom Scrollbar for that technical feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-zinc-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
 }

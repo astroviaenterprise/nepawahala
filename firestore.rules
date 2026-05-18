@@ -1,99 +1,41 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
     // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- PHASE 3: Primitives ---
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isVerified() {
-      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'astroviaenterprise@gmail.com' && request.auth.token.email_verified == true;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- PHASE 4: Validation Blueprints ---
-
+    // Log Validation
     function isValidLog(data) {
-      return data.keys().hasAll(['userId', 'userName', 'status', 'location', 'timestamp'])
-        && data.keys().size() == 5
-        && data.userId == request.auth.uid
-        && data.userName is string && data.userName.size() <= 100
-        && data.status in ['on', 'off']
-        && data.location.address is string && data.location.address.size() <= 500
-        && data.location.placeId is string && data.location.placeId.size() <= 200
-        && data.location.lat is number
-        && data.location.lng is number
-        && data.timestamp == request.time;
-    }
-
-    function isValidUserUpdate(data) {
-      return (data.displayName is string && data.displayName.size() <= 100)
-        && (data.email is string && data.email.size() <= 100 && data.email == request.auth.token.email)
-        && (data.lastLocation == null || (
-             data.lastLocation.address is string && data.lastLocation.address.size() <= 500
-             && data.lastLocation.placeId is string && data.lastLocation.placeId.size() <= 200
-             && data.lastLocation.lat is number
-             && data.lastLocation.lng is number
-           ));
-    }
-
-    // --- PHASE 5: Resource Rules ---
-
-    match /test/connection {
-      allow get: if true;
+      return data.keys().hasAll(['location', 'description', 'status', 'lat', 'lng', 'prediction', 'estimatedHours', 'timestamp']) &&
+             data.keys().size() <= 10 &&
+             data.location is string && data.location.size() <= 500 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.status in ['ON', 'OFF'] &&
+             data.lat is number && data.lat >= -90 && data.lat <= 90 &&
+             data.lng is number && data.lng >= -180 && data.lng <= 180 &&
+             data.prediction is string && data.prediction.size() <= 500 &&
+             data.estimatedHours is number &&
+             data.timestamp == request.time;
     }
 
     match /logs/{logId} {
-      allow get: if isValidId(logId);
-      allow list: if true; 
-      allow create: if isVerified() && isValidLog(incoming());
-      allow update, delete: if isAdmin();
+      // Allow anybody to read logs for the map
+      allow get: if true;
+      allow list: if true; // In a production app, we might limit this by geography or timestamp
+
+      // Allow creating logs - ideally this would be isSignedIn() but the current UI is public
+      allow create: if isValidLog(incoming()) && isValidId(logId);
+      
+      // Logs are immutable once created to prevent spoofing existing reports
+      allow update, delete: if false;
     }
-
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-
-      allow create: if isOwner(userId) 
-        && incoming().keys().hasAll(['displayName', 'email'])
-        && incoming().keys().size() >= 2
-        && (incoming().displayName == null || incoming().displayName is string)
-        && incoming().email == request.auth.token.email;
-
-      allow update: if isOwner(userId) && (
-        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email']) && isValidUserUpdate(incoming())) ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['lastLocation']) && isValidUserUpdate(incoming()))
-      );
-
-      allow delete: if isAdmin();
-    }
-
   }
 }

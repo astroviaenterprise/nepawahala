@@ -1,81 +1,47 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth();
+function getClientDb() {
+  const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  // Default to (default) if the specific one fails or is likely wrong
+  // In many cases, if it's not (default), it might be an extra database 
+  // but if we get 5_NOT_FOUND, we should fall back.
+  // We can't catch the error here easily as getFirestore is synchronous.
+  // We will export a way to re-init if needed.
+  return getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+}
 
-// Test connection cautiously on boot
-async function testConnection() {
-  const timeoutPromise = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Connection test timed out')), 5000)
-  );
+export let db = getClientDb();
 
-  try {
-    await Promise.race([
-      getDocFromServer(doc(db, 'test', 'connection')),
-      timeoutPromise
-    ]);
-    console.log("Firebase connection established successfully.");
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message.includes('offline') || error.message.includes('timed out')) {
-        console.warn("Firebase: Connecting in offline mode (Network might be slow or unstable).");
-      } else if (error.message.includes('permission-denied')) {
-        console.log("Firebase connection diagnostic: Initialized (Missing test doc is okay).");
-      } else {
-        console.log("Firebase status:", error.message);
+export function subscribeToLogs(callback: (logs: any[]) => void) {
+  let unsubscribe: (() => void) | null = null;
+  
+  const trySubscribe = (dbInstance: any) => {
+    const q = query(collection(dbInstance, 'logs'), orderBy('timestamp', 'desc'), limit(20));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: (doc.data().timestamp as any)?.toDate?.() || new Date()
+      }));
+      callback(logs);
+    }, (error) => {
+      if (error.code === 'not-found' && dbInstance._databaseId?.database === firebaseConfig.firestoreDatabaseId) {
+        console.warn("Firestore database not found, falling back to (default)");
+        // Re-init with default
+        const app = getApp();
+        db = getFirestore(app, '(default)');
+        if (unsubscribe) unsubscribe();
+        unsubscribe = trySubscribe(db);
       }
-    }
-  }
-}
-testConnection();
+      console.error("Firestore subscription error:", error);
+    });
+    return unsub;
+  };
 
-export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  unsubscribe = trySubscribe(db);
+  return () => {
+    if (unsubscribe) unsubscribe();
+  };
 }

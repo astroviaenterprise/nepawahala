@@ -1,53 +1,27 @@
 {
   "entities": {
-    "lightLog": {
-      "title": "Light Log",
-      "description": "A capture of power status at a specific time and location.",
+    "Log": {
+      "title": "Outage Log",
+      "description": "A user-reported power outage record with predictive analysis",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "UID of the user who reported." },
-        "userName": { "type": "string", "description": "Name of the reporter." },
-        "status": { "type": "string", "enum": ["on", "off"], "description": "Power status." },
-        "location": {
-          "type": "object",
-          "properties": {
-            "address": { "type": "string" },
-            "placeId": { "type": "string" },
-            "lat": { "type": "number" },
-            "lng": { "type": "number" }
-          }
-        },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "location": { "type": "string", "description": "The human-readable address or description of the location" },
+        "description": { "type": "string", "description": "User description of the outage cause" },
+        "status": { "type": "string", "enum": ["ON", "OFF"], "description": "Current power status reported" },
+        "lat": { "type": "number", "description": "Latitude of the outage" },
+        "lng": { "type": "number", "description": "Longitude of the outage" },
+        "prediction": { "type": "string", "description": "AI-generated analysis of the restoration time" },
+        "estimatedHours": { "type": "number", "description": "AI-estimated hours until restoration" },
+        "isHeuristic": { "type": "boolean", "description": "Whether the prediction used a heuristic fallback" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time the report was submitted" }
       },
-      "required": ["userId", "status", "location", "timestamp"]
-    },
-    "userProfile": {
-      "title": "User Profile",
-      "description": "Basic user information.",
-      "type": "object",
-      "properties": {
-        "displayName": { "type": "string", "description": "User's display name." },
-        "email": { "type": "string", "description": "User's email address." },
-        "lastLocation": {
-          "type": "object",
-          "properties": {
-            "address": { "type": "string" },
-            "placeId": { "type": "string" },
-            "lat": { "type": "number" },
-            "lng": { "type": "number" }
-          }
-        }
-      }
+      "required": ["location", "description", "status", "lat", "lng", "prediction", "estimatedHours", "timestamp"]
     }
   },
   "firestore": {
     "/logs/{logId}": {
-      "schema": "lightLog",
-      "description": "Collection of light reports."
-    },
-    "/users/{userId}": {
-      "schema": "userProfile",
-      "description": "User profile data."
+      "schema": "Log",
+      "description": "Collection of crowdsourced power outage reports"
     }
   }
 }
