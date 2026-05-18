@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 
 // Load environment variables
 try {
@@ -15,7 +15,7 @@ app.use(express.json());
 
 // Request logger with more detail
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Headers: ${JSON.stringify(req.headers['user-agent'])}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
@@ -45,20 +45,15 @@ function getAIClient() {
     return null;
   }
   
-  // Log masked key for verification in server logs (safe because it's only 8 chars visible)
+  // Log masked key for verification (safe because it's only a hint)
   const maskedKey = key.length > 8 
     ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` 
     : "****";
-  console.log(`DEBUG: AI Client initializing with key: ${maskedKey}`);
+  console.log(`DEBUG: AI Client initializing with key hint: ${maskedKey}`);
 
   try {
     return new GoogleGenAI({
       apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
     });
   } catch (err) {
     console.error("AI Client initialization failed:", err);
@@ -77,7 +72,7 @@ const handlePredict = async (req, res: express.Response) => {
     if (!aiClient) {
       console.error("DEBUG: No AI client available");
       return res.status(500).json({ 
-        error: "AI configuration missing on server. Please add GEMINI_API_KEY to your env/secrets and REDEPLOY." 
+        error: "AI configuration missing on server. Please add GEMINI_API_KEY to your Vercel Environment Variables." 
       });
     }
 
@@ -86,7 +81,7 @@ const handlePredict = async (req, res: express.Response) => {
     }
 
     const prompt = `
-      You are an expert analyst of power stability in Nigeria (NEPA/PHCN).
+      You are an expert analyst of power stability in Nigeria.
       Based on the following crowdsourced light logs for the area: "${currentLocation?.address || 'Unknown'}",
       predict when the light is likely to return or if it's expected to stay on.
       
@@ -98,116 +93,110 @@ const handlePredict = async (req, res: express.Response) => {
       Return the result as JSON with keys: "prediction", "confidence", "estimatedTime".
     `;
 
+    // HEURISTIC ENGINE (Fallback when AI fails)
+    const getHeuristicPrediction = (logs: any[]) => {
+      console.log("DEBUG: Running heuristic fallback prediction");
+      const recent = logs.slice(0, 10);
+      const isCurrentlyOn = recent[0]?.status === 'on';
+      
+      if (recent.length < 3) {
+        return {
+          prediction: "Insufficient data for a precise prediction. Power appears " + (isCurrentlyOn ? "unstable." : "to be out."),
+          confidence: 30,
+          estimatedTime: "Unknown"
+        };
+      }
+
+      // Simple pattern detection
+      const totalOn = recent.filter(l => l.status === 'on').length;
+      const ratio = totalOn / recent.length;
+      
+      let prediction = "";
+      let confidence = ratio * 100;
+      let estimatedTime = "Unknown";
+
+      if (isCurrentlyOn) {
+        prediction = ratio > 0.8 
+          ? "Power is currently stable. High probability it stays on for the next few hours." 
+          : "Power is back but has been fluctuating recently. Expect possible interruptions.";
+        estimatedTime = "Stable";
+      } else {
+        prediction = "Power is currently out. Based on recent activity, light usually returns after a few hours of downtime.";
+        // Guessing based on common Nigerian patterns if not specified
+        confidence = 50;
+      }
+
+      return { prediction, confidence: Math.round(confidence), estimatedTime };
+    };
+
     const modelsToTry = [
-      "gemini-3-flash-preview",
-      "gemini-3.1-flash-lite",
-      "gemini-2.0-flash",
-      "gemini-flash-latest"
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.5-pro",
+      "gemini-2.0-flash-exp"
     ];
     
-    let result;
+    let resultText = "";
     let lastError;
 
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`DEBUG: Attempting prediction with model: ${modelName}`);
-        
-        // Log available models once to help debugging safely
-        if (modelName === modelsToTry[0]) {
-          try {
-            const modelsResponse = await aiClient.models.list();
-            if (modelsResponse && Array.isArray(modelsResponse)) {
-               console.log("DEBUG: Available models count:", modelsResponse.length);
-            }
-          } catch (listErr) {
-            console.error("DEBUG: Failed to list models:", listErr);
+    // TRY GEMINI
+    if (aiClient) {
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`DEBUG: Trying Gemini model: ${modelName}`);
+          const model = aiClient.getGenerativeModel({ model: modelName });
+          const generation = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          });
+          
+          const text = generation.response.text();
+          if (text) {
+            resultText = text;
+            console.log(`DEBUG: Success with Gemini: ${modelName}`);
+            break; 
           }
+        } catch (err: any) {
+          console.error(`DEBUG: Gemini ${modelName} failed:`, (err.message || "").substring(0, 100));
+          lastError = err;
         }
-
-        result = await aiClient.models.generateContent({
-          model: modelName, 
-          contents: [{
-            role: "user",
-            parts: [{ text: prompt }]
-          }],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                prediction: {
-                  type: Type.STRING,
-                  description: "A concise prediction about light return or stability."
-                },
-                confidence: {
-                  type: Type.NUMBER,
-                  description: "Confidence percentage (0-100)."
-                },
-                estimatedTime: {
-                  type: Type.STRING,
-                  description: "Estimated time of light return or 'Stable'."
-                }
-              },
-              required: ["prediction", "confidence", "estimatedTime"]
-            }
-          }
-        });
-        
-        if (result && result.text) {
-          console.log(`DEBUG: Successfully generated prediction with model: ${modelName}`);
-          break; // Success!
-        }
-      } catch (err: any) {
-        console.error(`DEBUG: Model ${modelName} failed:`, err.message || err);
-        lastError = err;
-        // Proceed to next model in loop
       }
     }
 
-    if (!result || !result.text) {
-      console.error("AI: All prediction models failed.");
-      throw lastError || new Error("All AI models failed to generate content");
-    }
-
-    if (!result || !result.text) {
-      console.error("AI response has no text content. Result:", JSON.stringify(result));
-      throw new Error("Empty response from AI model");
-    }
-
+    // FALLBACK TO HEURISTIC IF ALL AI FAILED
     let parsedContent;
-    try {
-      // Clean up markdown if present, though responseMimeType should prevent it
-      const cleanJson = result.text.replace(/```json/g, '').replace(/```/g, '').trim();
-      parsedContent = JSON.parse(cleanJson);
-      console.log("DEBUG: AI Generation successful");
-    } catch (parseError) {
-      console.error("JSON parse error for AI response. Raw text:", result.text);
-      throw new Error("Failed to parse AI response as JSON");
+    if (!resultText) {
+      console.warn("AI Fallbacks failed. Using Heuristic Engine.");
+      parsedContent = getHeuristicPrediction(logs);
+    } else {
+      try {
+        const cleanJson = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsedContent = JSON.parse(cleanJson);
+      } catch (parseError) {
+        console.error("JSON parse error:", resultText);
+        parsedContent = getHeuristicPrediction(logs);
+      }
     }
 
     res.json(parsedContent);
   } catch (error: any) {
-    console.error("Prediction error details:", error);
+    console.error("CATCH ALL Prediction error:", error);
     
-    let errorMessage = "Failed to generate prediction";
+    let errorMessage = "Prediction service unavailable";
     let status = 500;
 
-    // Enhanced error detection for Gemini API
     const message = error.message || String(error);
     const errorStatus = error.status || (error.response?.status);
 
-    if (message.includes("API key expired") || message.includes("API_KEY_INVALID") || errorStatus === 401 || (errorStatus === 400 && message.includes("API key"))) {
-      errorMessage = "The Gemini API key is reported as EXPIRED or INVALID. Please check your GEMINI_API_KEY setting.";
+    if (message.includes("API key") || errorStatus === 401) {
+      errorMessage = "Gemini API key is invalid or missing.";
       status = 401;
-    } else if (message.includes("quota") || errorStatus === 429 || message.includes("429")) {
-      errorMessage = "Gemini API quota exceeded. Please wait or upgrade your tier.";
+    } else if (message.includes("quota") || errorStatus === 429) {
+      errorMessage = "Gemini quota exceeded. Please try again in 1 minute.";
       status = 429;
     } else if (message.includes("not found") || errorStatus === 404) {
-      errorMessage = "The selected Gemini model was not found. Please check model availability.";
+      errorMessage = "AI model not found. Check if your API key has access to standard models.";
       status = 404;
-    } else if (message.includes("safety") || message.includes("block")) {
-      errorMessage = "The AI model blocked the request due to safety concerns. Please refine your input.";
-      status = 400;
     }
 
     res.status(status).json({ 
