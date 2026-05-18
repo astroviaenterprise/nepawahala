@@ -106,8 +106,8 @@ export default function App() {
       {/* Sidebar - Control Panel */}
       <aside 
         className={cn(
-          "bg-zinc-950/90 backdrop-blur-3xl border-r border-zinc-800 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-30 shadow-[40px_0_100px_rgba(0,0,0,0.8)] lg:shadow-none",
-          isSidebarOpen ? "w-full lg:w-[440px]" : "w-0 lg:w-0"
+          "fixed inset-y-0 left-0 lg:relative bg-zinc-950/95 backdrop-blur-3xl border-r border-zinc-800 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-50 shadow-[40px_0_100px_rgba(0,0,0,0.8)] lg:shadow-none",
+          isSidebarOpen ? "translate-x-0 w-[85%] sm:w-[400px] lg:w-[440px]" : "-translate-x-full lg:translate-x-0 lg:w-0 overflow-hidden"
         )}
       >
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
@@ -115,20 +115,26 @@ export default function App() {
           <div className="absolute top-[60%] -right-[10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full" />
         </div>
         {/* Header */}
-        <div className="p-8 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-950/50 backdrop-blur-md">
+        <div className="p-6 sm:p-8 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-950/50 backdrop-blur-md">
           <div className="flex items-center gap-4">
             <div className="bg-amber-500 p-2.5 rounded-xl amber-glow relative overflow-hidden group">
                <Zap className="text-zinc-950 w-5 h-5 fill-current relative z-10" />
                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">Nepa Wahala</h1>
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter uppercase italic leading-none">Nepa Wahala</h1>
               <div className="flex items-center gap-2 mt-1">
                 <span className="tech-label text-emerald-500">Grid Monitor</span>
                 <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             </div>
           </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="lg:hidden p-2 hover:bg-zinc-900 rounded-lg text-zinc-500 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Maps Billing Alert */}
@@ -288,11 +294,20 @@ export default function App() {
       {/* Main Content - Live Monitoring Dashboard */}
       <main className="flex-grow flex flex-col relative overflow-hidden">
         {/* Top Header */}
-        <header className="h-20 border-b border-zinc-800/50 bg-zinc-950/50 backdrop-blur-xl px-12 flex items-center justify-between z-20">
-          <div className="flex items-center gap-8">
+        <header className="h-20 border-b border-zinc-800/50 bg-zinc-950/50 backdrop-blur-xl px-6 sm:px-12 flex items-center justify-between z-20">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className={cn(
+                "p-2 hover:bg-zinc-900 rounded-lg text-zinc-400 transition-all lg:hidden",
+                isSidebarOpen && "opacity-0 pointer-events-none"
+              )}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div className="flex flex-col">
-              <span className="text-xs font-black text-white italic tracking-tighter uppercase italic leading-none">Global Awareness</span>
-              <span className="text-[9px] text-amber-500 font-mono font-bold uppercase tracking-[0.2em] mt-1">Real-time Telemetry</span>
+              <span className="text-[10px] sm:text-xs font-black text-white italic tracking-tighter uppercase italic leading-none">Global Awareness</span>
+              <span className="text-[8px] sm:text-[9px] text-amber-500 font-mono font-bold uppercase tracking-[0.2em] mt-1">Real-time Telemetry</span>
             </div>
             <div className="h-8 w-px bg-zinc-800 lg:block hidden" />
             <div className="lg:flex hidden items-center gap-6">
@@ -316,10 +331,10 @@ export default function App() {
         </header>
 
         {/* Dashboard Area */}
-        <div className="flex-grow relative overflow-y-auto custom-scrollbar p-12 lg:p-20 z-10">
-          <div className="max-w-5xl mx-auto space-y-20">
+        <div className="flex-grow relative overflow-y-auto custom-scrollbar p-6 sm:p-12 lg:p-20 z-10">
+          <div className="max-w-5xl mx-auto space-y-12 sm:space-y-20">
             {/* Hero Stats */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
               {[
                 { label: 'Outages Detected', value: feed.filter(f => f.status === 'OFF').length, icon: AlertTriangle, color: 'text-red-500' },
                 { label: 'Grid Restored', value: feed.filter(f => f.status === 'ON').length, icon: Zap, color: 'text-emerald-500' },
@@ -330,31 +345,31 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                   key={stat.label}
-                  className="hardware-card p-8 bg-zinc-900/20 flex items-center justify-between group hover:border-zinc-700 transition-all"
+                  className="hardware-card p-6 sm:p-8 bg-zinc-900/20 flex items-center justify-between group hover:border-zinc-700 transition-all"
                 >
                   <div>
                     <h3 className="tech-label mb-2">{stat.label}</h3>
-                    <div className="text-4xl font-black text-white font-mono">{stat.value}</div>
+                    <div className="text-2xl sm:text-4xl font-black text-white font-mono">{stat.value}</div>
                   </div>
-                  <stat.icon className={cn("w-8 h-8 opacity-20 group-hover:opacity-100 transition-opacity", stat.color)} />
+                  <stat.icon className={cn("w-6 h-6 sm:w-8 sm:h-8 opacity-20 group-hover:opacity-100 transition-opacity", stat.color)} />
                 </motion.div>
               ))}
             </section>
 
             {/* Feed Section */}
-            <section className="space-y-8">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-6">
+            <section className="space-y-6 sm:space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-6 gap-6">
                 <div className="flex items-center gap-4">
                   <div className="bg-zinc-900 p-2 rounded-lg border border-zinc-700">
                     <Activity className="w-5 h-5 text-zinc-300" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold tracking-tight text-white">Live Activity Stream</h2>
-                    <p className="text-xs text-zinc-400 font-mono uppercase tracking-widest mt-1">Cross-referencing verified crowdsourced data</p>
+                    <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">Live Activity Stream</h2>
+                    <p className="text-[10px] sm:text-xs text-zinc-400 font-mono uppercase tracking-widest mt-1">Cross-referencing verified crowdsourced data</p>
                   </div>
                 </div>
-                <div className="flex gap-4 items-center">
-                  <div className="flex items-center gap-2 px-3 py-1 rounded bg-zinc-900 border border-zinc-700">
+                <div className="flex gap-4 items-center overflow-x-auto sm:overflow-visible pb-2 sm:pb-0">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded bg-zinc-900 border border-zinc-700 shrink-0">
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full animate-pulse",
                       syncStatus === 'CONNECTED' ? "bg-emerald-500" : syncStatus === 'CONNECTING' ? "bg-amber-500" : "bg-red-500"
